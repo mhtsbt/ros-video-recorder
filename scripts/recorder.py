@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 import datetime
 import time
-
+from copy import deepcopy
 import rospy
 
 from sensor_msgs.msg import Image
@@ -13,11 +13,11 @@ from cv_bridge import CvBridge, CvBridgeError
 
 def opencv_version():
     v = cv2.__version__.split('.')[0]
-    if v == '2':
-        return 2
-    elif v == '3':
-        return 3
-    raise Exception('opencv version can not be parsed. v={}'.format(v))
+#    if v == '2':
+#        return 2
+#    elif v == '3':
+    return 3
+    #raise Exception('opencv version can not be parsed. v={}'.format(v))
 
 
 class VideoFrames:
@@ -29,8 +29,19 @@ class VideoFrames:
 
     def callback_image(self, data):
         try:
-            cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
+
+            cv_image = self.bridge.imgmsg_to_cv2(data) #, "bgr8")
+
+            if data.encoding == '16UC1':
+                cv_image2 = deepcopy(cv_image)
+                cv_image2 /= 8
+
+		cv_image = cv2.cvtColor(cv_image2, cv2.COLOR_GRAY2RGB)
+
+            cv_image = cv2.cvtColor(cv_image, cv2.COLOR_RGB2BGR)
+
         except CvBridgeError as e:
+            #cv_image = self.bridge.imgmsg_to_cv2(data, "16UC1")
             rospy.logerr('[ros-video-recorder][VideoFrames] Converting Image Error. ' + str(e))
             return
 
@@ -69,7 +80,7 @@ class VideoRecorder:
             raise
 
         self.output_path = output_path
-        
+
         if self.output_path:
             self.video_writer = cv2.VideoWriter(output_path, fourcc, output_fps, (output_width, output_height))
         else:
@@ -135,7 +146,7 @@ if __name__ == '__main__':
     # parameters
     output_width = int(rospy.get_param('~output_width', '640'))
     output_height = int(rospy.get_param('~output_height', '480'))
-    output_fps = int(rospy.get_param('~output_fps', '30'))
+    output_fps = int(rospy.get_param('~output_fps', '60'))
     output_format = rospy.get_param('~output_format', 'xvid')
     output_topic = rospy.get_param('~output_topic', '')
     output_path = rospy.get_param('~output_path', '')
